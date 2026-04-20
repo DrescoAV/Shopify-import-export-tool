@@ -1,18 +1,18 @@
 # Shopify import/export tool
 
-Aplicatie Flask simpla pentru:
+Simple Flask app for:
 
-- update pret in Shopify
-- update stoc in Shopify
-- export produse in JSON
-- export produse in CSV
-- folosire prin GUI local in browser
+- updating prices in Shopify
+- updating stock in Shopify
+- exporting products as JSON
+- exporting products as CSV
+- using everything through a local browser GUI
 
-## GUI local
+## Local GUI
 
-Modul principal de folosire este prin interfata grafica locala din browser.
+The main way to use the app is through the local browser interface.
 
-Deschide:
+Open:
 
 ```text
 http://localhost:5000/
@@ -22,25 +22,25 @@ Preview:
 
 ![Shopify import/export tool preview](Preview.png)
 
-## Ce iti trebuie
+## What you need
 
 - Python `3.11+`
-- un `Shopify Admin API access token`
-- un fisier `.env`
+- a `Shopify Admin API access token`
+- a `.env` file
 
-Scope-uri recomandate pentru Shopify:
+Recommended Shopify scopes:
 
 - `read_products`
 - `write_products`
 - `read_inventory`
 - `write_inventory`
 
-## Configurare
+## Configuration
 
-1. Creeaza `.env` din `.env.example`
-2. Completeaza valorile reale
+1. Create `.env` from `.env.example`
+2. Fill in your real values
 
-Exemplu:
+Example:
 
 ```env
 SHOP_DOMAIN=survivalprep-2.myshopify.com
@@ -49,53 +49,53 @@ DEFAULT_LOCATION_ID=1234567890
 PORT=5000
 ```
 
-## Pornire rapida
+## Quick start
 
 ### Windows
 
-Pornire:
+Start:
 
 ```powershell
 .\start_app.ps1
 ```
 
-Oprire:
+Stop:
 
 ```powershell
 .\stop_app.ps1
 ```
 
-Sau dublu click:
+Or double-click:
 
 - `launch_app.bat`
 - `stop_app.bat`
 
 ### macOS
 
-Prima data:
+First time only:
 
 ```bash
 chmod +x start_app.sh stop_app.sh launch_app.command stop_app.command
 ```
 
-Pornire:
+Start:
 
 ```bash
 ./start_app.sh
 ```
 
-Oprire:
+Stop:
 
 ```bash
 ./stop_app.sh
 ```
 
-Sau dublu click:
+Or double-click:
 
 - `launch_app.command`
 - `stop_app.command`
 
-## Pornire manuala
+## Manual start
 
 ### macOS / Linux
 
@@ -117,40 +117,40 @@ Copy-Item .env.example .env
 python app.py
 ```
 
-## Ce fac scripturile de start
+## What the start scripts do
 
-- creeaza `.venv` daca lipseste
-- instaleaza dependentele
-- opresc instanta veche de pe portul aplicatiei
-- pornesc aplicatia
-- salveaza PID-ul in `logs/app.pid`
-- deschid browserul automat
+- create `.venv` if it is missing
+- install dependencies
+- stop any old app instance on the app port
+- start the app
+- save the PID in `logs/app.pid`
+- open the browser automatically
 
-Pe macOS scripturile folosesc:
+On macOS the scripts use:
 
 - `python3`
 - `lsof`
 - `curl`
 - `open`
 
-## Ce poti face in aplicatie
+## What you can do in the app
 
-- folosesti totul din GUI, fara sa trimiti requesturi manual daca nu vrei
-- vezi starea configurarii prin `Health`
-- faci `Update Price`
-- faci `Update Stock`
-- vezi exportul de produse in UI
-- descarci CSV
-- filtrezi, sortezi si paginezi tabelul
+- use the tool from the GUI without sending manual requests if you do not want to
+- check configuration status through `Health`
+- run `Update Price`
+- run `Update Stock`
+- preview product exports inside the UI
+- download CSV
+- filter, sort, and paginate the table
 
-Practic:
+Typical flow:
 
-- pornesti aplicatia
-- deschizi GUI-ul in browser
-- faci update sau export direct din interfata
-- folosesti endpointurile doar daca vrei integrare externa sau teste in Postman
+- start the app
+- open the GUI in the browser
+- update prices or stock directly from the interface
+- use the endpoints only if you want external integrations or Postman testing
 
-## Endpointuri
+## Endpoints
 
 - `GET /health`
 - `POST /incoming/update-price`
@@ -158,9 +158,9 @@ Practic:
 - `GET /outgoing/products.json`
 - `GET /outgoing/products.csv`
 
-## Exemple rapide
+## Quick examples
 
-### Update price dupa SKU
+### Update price by SKU
 
 ```bash
 curl -X POST http://localhost:5000/incoming/update-price \
@@ -168,7 +168,7 @@ curl -X POST http://localhost:5000/incoming/update-price \
   -d '{"sku":"ABC-123","price":"149.99"}'
 ```
 
-### Update stock dupa SKU
+### Update stock by SKU
 
 ```bash
 curl -X POST http://localhost:5000/incoming/update-stock \
@@ -188,11 +188,11 @@ curl http://localhost:5000/outgoing/products.json
 curl http://localhost:5000/outgoing/products.csv -o products.csv
 ```
 
-## Observatii
+## Notes
 
-- cautarea dupa SKU face match exact pe `variant.sku`
+- SKU lookup matches exactly on `variant.sku`
 - `manufacturer = vendor`
 - `category = product_type`
 - `product_url = https://{SHOP_DOMAIN}/products/{handle}`
-- `image_url = prima imagine disponibila`
-- daca `location_id` lipseste, se foloseste `DEFAULT_LOCATION_ID`
+- `image_url = first available image`
+- if `location_id` is missing, the app uses `DEFAULT_LOCATION_ID`
