@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Shopify import/export tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+
+      <header class="hero glass">
+        <div>
+          <p class="eyebrow">Shopify Admin REST {{ api_version }}</p>
+          <h1>Shopify import/export tool</h1>
+          <p class="hero-copy">
+            Simple control panel for price updates, stock updates and product exports.
+          </p>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-chip">
+            <span class="meta-label">Store</span>
+            <strong>{{ shop_domain }}</strong>
+          </div>
+          <div class="meta-chip">
+            <span class="meta-label">Default Location</span>
+            <strong>{{ default_location_id }}</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard-grid">
+        <section class="glass panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">System</p>
+              <h2>Health Status</h2>
+            </div>
+            <div class="action-row">
+              <button id="refresh-health" class="button button-secondary" type="button">
+                Refresh
+              </button>
+              <button id="shutdown-app" class="button button-danger" type="button">
+                Stop App
+              </button>
+            </div>
+          </div>
+          <div id="health-status" class="status-grid"></div>
+        </section>
+
+        <section class="glass panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Incoming</p>
+              <h2>Update Price</h2>
+            </div>
+          </div>
+
+          <form id="price-form" class="stack">
+            <label class="field">
+              <span>SKU</span>
+              <input name="sku" type="text" placeholder="ABC-123">
+            </label>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Variant ID</span>
+                <input name="variant_id" type="text" placeholder="Optional">
+              </label>
+
+              <label class="field">
+                <span>Price</span>
+                <input name="price" type="text" placeholder="149.99" required>
+              </label>
+            </div>
+
+            <button class="button" type="submit">Send Price Update</button>
+          </form>
+        </section>
+
+        <section class="glass panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Incoming</p>
+              <h2>Update Stock</h2>
+            </div>
+          </div>
+
+          <form id="stock-form" class="stack">
+            <label class="field">
+              <span>SKU</span>
+              <input name="sku" type="text" placeholder="ABC-123">
+            </label>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Inventory Item ID</span>
+                <input name="inventory_item_id" type="text" placeholder="Optional">
+              </label>
+
+              <label class="field">
+                <span>Variant ID</span>
+                <input name="variant_id" type="text" placeholder="Optional">
+              </label>
+            </div>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Location ID</span>
+                <input name="location_id" type="text" placeholder="Optional">
+              </label>
+
+              <label class="field">
+                <span>Available</span>
+                <input name="available" type="number" step="1" placeholder="25" required>
+              </label>
+            </div>
+
+            <p class="helper-copy">
+              Shopify stock updates use only <strong>available</strong> in this UI.
+            </p>
+
+            <button class="button" type="submit">Send Stock Update</button>
+          </form>
+        </section>
+
+        <section class="glass panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Outgoing</p>
+              <h2>Product Export</h2>
+            </div>
+            <div class="action-row">
+              <button id="load-export-preview" class="button button-secondary" type="button">
+                View In App
+              </button>
+              <a class="button button-secondary" href="/outgoing/products.json" target="_blank" rel="noreferrer">
+                Open JSON
+              </a>
+              <a class="button button-secondary" href="/outgoing/products.csv">
+                Download CSV
+              </a>
+            </div>
+          </div>
+          <p class="muted">
+            Export fields: SKU, manufacturer, product name, category, price, product URL, image URL.
+          </p>
+        </section>
+
+        <section class="glass panel panel-wide">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Response</p>
+              <h2>Live Output</h2>
+            </div>
+            <button id="clear-output" class="button button-secondary" type="button">
+              Clear
+            </button>
+          </div>
+          <div class="viewer-toolbar">
+            <label class="viewer-search-shell">
+              <span>Search rows</span>
+              <input id="viewer-search" type="text" placeholder="Filter any visible value">
+            </label>
+            <div id="viewer-meta" class="viewer-meta">No table loaded.</div>
+          </div>
+          <div id="viewer-csv-controls" class="viewer-csv-controls">
+            <div>
+              <p class="eyebrow">CSV Export</p>
+              <div class="column-picker-tools">
+                <button id="viewer-select-all-columns" class="button button-secondary button-small" type="button">
+                  Select All
+                </button>
+                <button id="viewer-clear-columns" class="button button-secondary button-small" type="button">
+                  Clear All
+                </button>
+              </div>
+              <div id="viewer-column-picker" class="viewer-column-picker"></div>
+            </div>
+            <div class="csv-actions">
+              <div id="viewer-preview" class="viewer-preview">Load a table to preview CSV export.</div>
+              <button id="viewer-download-csv" class="button" type="button">
+                Download Filtered CSV
+              </button>
+            </div>
+          </div>
+          <div id="viewer-empty" class="viewer-empty">Run an action to see a formatted response here.</div>
+          <div id="viewer-summary" class="viewer-summary"></div>
+          <div id="viewer-table" class="viewer-table-shell"></div>
+          <div id="viewer-pagination" class="viewer-pagination">
+            <div class="pagination-settings">
+              <label class="pagination-size-label" for="viewer-page-size">
+                <span>Rows per page</span>
+                <select id="viewer-page-size">
+                  <option value="15">15</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                </select>
+              </label>
+              <div id="viewer-pagination-status" class="pagination-summary">No pages yet.</div>
+            </div>
+            <div id="viewer-pagination-controls" class="pagination-controls"></div>
+          </div>
+          <pre id="output" class="output-panel">Ready.</pre>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const output = document.getElementById("output");
+      const healthContainer = document.getElementById("health-status");
+      const viewerSummary = document.getElementById("viewer-summary");
+      const viewerTable = document.getElementById("viewer-table");
+      const viewerEmpty = document.getElementById("viewer-empty");
+      const viewerSearch = document.getElementById("viewer-search");
+      const viewerMeta = document.getElementById("viewer-meta");
+      const viewerColumnPicker = document.getElementById("viewer-column-picker");
+      const viewerDownloadCsv = document.getElementById("viewer-download-csv");
+      const viewerPreview = document.getElementById("viewer-preview");
+      const viewerSelectAllColumns = document.getElementById("viewer-select-all-columns");
+      const viewerClearColumns = document.getElementById("viewer-clear-columns");
+      const viewerPagination = document.getElementById("viewer-pagination");
+      const viewerPaginationStatus = document.getElementById("viewer-pagination-status");
+      const viewerPaginationControls = document.getElementById("viewer-pagination-controls");
+      const viewerPageSize = document.getElementById("viewer-page-size");
+      const viewerState = {
+        rows: [],
+        columns: [],
+        selectedColumns: [],
+        sortColumn: null,
+        sortDirection: "asc",
+        page: 1,
+        pageSize: 25,
+      };
+
+      function cleanPayload(formData) {
+        const payload = {};
+        for (const [key, value] of formData.entries()) {
+          if (value !== "") {
+            payload[key] = value;
+          }
+        }
+        return payload;
+      }
+
+      function printOutput(title, payload) {
+        output.textContent = `${title}\n\n${JSON.stringify(payload, null, 2)}`;
+        renderViewer(payload);
+      }
+
+      function resetViewer() {
+        viewerSummary.innerHTML = "";
+        viewerTable.innerHTML = "";
+        viewerColumnPicker.innerHTML = "";
+        viewerEmpty.style.display = "flex";
+        viewerMeta.textContent = "No table loaded.";
+        viewerPreview.textContent = "Load a table to preview CSV export.";
+        viewerDownloadCsv.disabled = true;
+        viewerPaginationStatus.textContent = "No pages yet.";
+        viewerPaginationControls.innerHTML = "";
+        viewerState.rows = [];
+        viewerState.columns = [];
+        viewerState.selectedColumns = [];
+        viewerState.sortColumn = null;
+        viewerState.sortDirection = "asc";
+        viewerState.page = 1;
+        viewerPageSize.value = String(viewerState.pageSize);
+      }
+
+      function createSummaryCard(label, value) {
+        const card = document.createElement("article");
+        card.className = "viewer-card";
+        card.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+        return card;
+      }
+
+      function renderSummaryCards(items) {
+        viewerSummary.innerHTML = "";
+        items.forEach((item) => viewerSummary.appendChild(createSummaryCard(item.label, item.value)));
+      }
+
+      function formatCell(value, column) {
+        if (value == null) {
+          return "";
+        }
+
+        if (column === "image_url" && typeof value === "string" && value.startsWith("http")) {
+          return `
+            <div class="image-cell">
+              <img class="thumb" src="${value}" alt="Product image">
+              <a href="${value}" target="_blank" rel="noreferrer">Open image</a>
+            </div>
+          `;
+        }
+
+        if (typeof value === "string" && value.startsWith("http")) {
+          return `<a href="${value}" target="_blank" rel="noreferrer">${value}</a>`;
+        }
+
+        if (typeof value === "object") {
+          return JSON.stringify(value);
+        }
+
+        return String(value);
+      }
+
+      function compareValues(left, right) {
+        const leftNumber = Number(left);
+        const rightNumber = Number(right);
+        const leftNumeric = Number.isFinite(leftNumber) && `${left}`.trim() !== "";
+        const rightNumeric = Number.isFinite(rightNumber) && `${right}`.trim() !== "";
+
+        if (leftNumeric && rightNumeric) {
+          return leftNumber - rightNumber;
+        }
+
+        return String(left ?? "").localeCompare(String(right ?? ""), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      }
+
+      function getFilteredSortedRows() {
+        const term = viewerSearch.value.trim().toLowerCase();
+        let rows = [...viewerState.rows];
+
+        if (term) {
+          rows = rows.filter((row) =>
+            viewerState.columns.some((column) =>
+              String(row[column] ?? "").toLowerCase().includes(term)
+            )
+          );
+        }
+
+        if (viewerState.sortColumn) {
+          rows.sort((a, b) => {
+            const result = compareValues(a[viewerState.sortColumn], b[viewerState.sortColumn]);
+            return viewerState.sortDirection === "asc" ? result : -result;
+          });
+        }
+
+        return rows;
+      }
+
+      function updateCsvPreview() {
+        if (!viewerState.rows.length || !viewerState.selectedColumns.length) {
+          viewerPreview.textContent = "Load a table to preview CSV export.";
+          viewerDownloadCsv.disabled = true;
+          return;
+        }
+
+        const rows = getFilteredSortedRows();
+        const columnText = viewerState.selectedColumns.join(", ");
+        viewerPreview.textContent = `${rows.length} rows ready for CSV with columns: ${columnText}`;
+        viewerDownloadCsv.disabled = rows.length === 0;
+      }
+
+      function setSelectedColumns(columns) {
+        viewerState.selectedColumns = [...columns];
+        renderColumnPicker();
+      }
+
+      function renderColumnPicker() {
+        viewerColumnPicker.innerHTML = "";
+        if (!viewerState.columns.length) {
+          viewerSelectAllColumns.disabled = true;
+          viewerClearColumns.disabled = true;
+          updateCsvPreview();
+          return;
+        }
+
+        viewerSelectAllColumns.disabled = false;
+        viewerClearColumns.disabled = false;
+
+        viewerState.columns.forEach((column) => {
+          const label = document.createElement("label");
+          label.className = "column-option";
+          const checked = viewerState.selectedColumns.includes(column) ? "checked" : "";
+          label.innerHTML = `
+            <input type="checkbox" value="${column}" ${checked}>
+            <span>${column.replaceAll("_", " ")}</span>
+          `;
+          viewerColumnPicker.appendChild(label);
+        });
+
+        viewerColumnPicker.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+          input.addEventListener("change", () => {
+            viewerState.selectedColumns = Array.from(
+              viewerColumnPicker.querySelectorAll('input[type="checkbox"]:checked')
+            ).map((element) => element.value);
+            updateCsvPreview();
+          });
+        });
+
+        updateCsvPreview();
+      }
+
+      function getPaginationInfo(rowCount) {
+        const totalPages = Math.max(1, Math.ceil(rowCount / viewerState.pageSize));
+        viewerState.page = Math.min(viewerState.page, totalPages);
+        viewerState.page = Math.max(viewerState.page, 1);
+
+        return {
+          totalPages,
+          startIndex: (viewerState.page - 1) * viewerState.pageSize,
+          endIndex: viewerState.page * viewerState.pageSize,
+        };
+      }
+
+      function renderPagination(rowCount) {
+        if (!rowCount) {
+          viewerPaginationStatus.textContent = "No pages yet.";
+          viewerPaginationControls.innerHTML = "";
+          return;
+        }
+
+        const { totalPages } = getPaginationInfo(rowCount);
+        viewerPaginationStatus.textContent = `Page ${viewerState.page} of ${totalPages}`;
+        viewerPaginationControls.innerHTML = "";
+
+        if (totalPages === 1) {
+          return;
+        }
+
+        const previous = document.createElement("button");
+        previous.type = "button";
+        previous.className = "button button-secondary button-small";
+        previous.textContent = "Previous";
+        previous.disabled = viewerState.page === 1;
+        previous.addEventListener("click", () => {
+          viewerState.page -= 1;
+          renderTable(viewerState.rows, viewerState.columns);
+        });
+        viewerPaginationControls.appendChild(previous);
+
+        const pageWindowStart = Math.max(1, viewerState.page - 1);
+        const pageWindowEnd = Math.min(totalPages, pageWindowStart + 2);
+        for (let page = pageWindowStart; page <= pageWindowEnd; page += 1) {
+          const pageButton = document.createElement("button");
+          pageButton.type = "button";
+          pageButton.className = `button ${page === viewerState.page ? "" : "button-secondary"} button-small`;
+          pageButton.textContent = String(page);
+          pageButton.addEventListener("click", () => {
+            viewerState.page = page;
+            renderTable(viewerState.rows, viewerState.columns);
+          });
+          viewerPaginationControls.appendChild(pageButton);
+        }
+
+        const next = document.createElement("button");
+        next.type = "button";
+        next.className = "button button-secondary button-small";
+        next.textContent = "Next";
+        next.disabled = viewerState.page === totalPages;
+        next.addEventListener("click", () => {
+          viewerState.page += 1;
+          renderTable(viewerState.rows, viewerState.columns);
+        });
+        viewerPaginationControls.appendChild(next);
+      }
+
+      function escapeCsv(value) {
+        const text = String(value ?? "");
+        if (text.includes('"') || text.includes(",") || text.includes("\n")) {
+          return `"${text.replaceAll('"', '""')}"`;
+        }
+        return text;
+      }
+
+      function buildCsv(rows, columns) {
+        const lines = [
+          columns.map((column) => escapeCsv(column)).join(","),
+          ...rows.map((row) =>
+            columns.map((column) => escapeCsv(row[column])).join(",")
+          ),
+        ];
+        return lines.join("\r\n");
+      }
+
+      function makeCsvFilename() {
+        const term = viewerSearch.value.trim().toLowerCase();
+        if (!term && viewerState.selectedColumns.length === viewerState.columns.length && !viewerState.sortColumn) {
+          return "products-all.csv";
+        }
+
+        if (term) {
+          const slug = term.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "filtered";
+          return `products-filtered-${slug}.csv`;
+        }
+
+        const now = new Date();
+        const stamp = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, "0"),
+          String(now.getDate()).padStart(2, "0"),
+          String(now.getHours()).padStart(2, "0"),
+          String(now.getMinutes()).padStart(2, "0"),
+        ].join("-");
+        return `products-${stamp}.csv`;
+      }
+
+      function downloadCurrentCsv() {
+        const rows = getFilteredSortedRows();
+        const columns = viewerState.selectedColumns.length
+          ? viewerState.selectedColumns
+          : viewerState.columns;
+
+        if (!rows.length || !columns.length) {
+          return;
+        }
+
+        const csv = buildCsv(rows, columns);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = makeCsvFilename();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function renderTable(rows, preferredColumns = []) {
+        if (!rows.length) {
+          viewerTable.innerHTML = "";
+          viewerEmpty.style.display = "flex";
+          viewerMeta.textContent = "No rows to display.";
+          viewerPaginationStatus.textContent = "No pages yet.";
+          viewerPaginationControls.innerHTML = "";
+          return;
+        }
+
+        const seen = new Set();
+        const columns = [];
+        preferredColumns.forEach((column) => {
+          if (rows.some((row) => Object.hasOwn(row, column))) {
+            columns.push(column);
+            seen.add(column);
+          }
+        });
+
+        rows.forEach((row) => {
+          Object.keys(row).forEach((key) => {
+            if (!seen.has(key)) {
+              columns.push(key);
+              seen.add(key);
+            }
+          });
+        });
+
+        viewerState.rows = rows;
+        viewerState.columns = columns;
+        if (!viewerState.selectedColumns.length) {
+          viewerState.selectedColumns = [...columns];
+        } else {
+          viewerState.selectedColumns = viewerState.selectedColumns.filter((column) => columns.includes(column));
+          if (!viewerState.selectedColumns.length) {
+            viewerState.selectedColumns = [...columns];
+          }
+        }
+
+        const filteredRows = getFilteredSortedRows();
+        const { startIndex, endIndex, totalPages } = getPaginationInfo(filteredRows.length);
+        const visibleRows = filteredRows.slice(startIndex, endIndex);
+        const table = document.createElement("table");
+        table.className = "viewer-table";
+
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        columns.forEach((column) => {
+          const th = document.createElement("th");
+          const arrow =
+            viewerState.sortColumn === column
+              ? (viewerState.sortDirection === "asc" ? " ↑" : " ↓")
+              : "";
+          th.innerHTML = `<button class="sort-button" type="button" data-column="${column}">${column.replaceAll("_", " ")}${arrow}</button>`;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+
+        const tbody = document.createElement("tbody");
+        visibleRows.forEach((row) => {
+          const tr = document.createElement("tr");
+          columns.forEach((column) => {
+            const td = document.createElement("td");
+            const value = row[column];
+            td.innerHTML = formatCell(value, column);
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        viewerTable.innerHTML = "";
+        viewerTable.appendChild(table);
+        viewerEmpty.style.display = "none";
+        viewerMeta.textContent = `${filteredRows.length} / ${rows.length} rows · page ${viewerState.page}/${totalPages}`;
+        renderColumnPicker();
+        renderPagination(filteredRows.length);
+
+        viewerTable.querySelectorAll(".sort-button").forEach((button) => {
+          button.addEventListener("click", () => {
+            const column = button.dataset.column;
+            if (viewerState.sortColumn === column) {
+              viewerState.sortDirection = viewerState.sortDirection === "asc" ? "desc" : "asc";
+            } else {
+              viewerState.sortColumn = column;
+              viewerState.sortDirection = "asc";
+            }
+            viewerState.page = 1;
+            renderTable(viewerState.rows, viewerState.columns);
+          });
+        });
+      }
+
+      function objectToRows(object) {
+        return Object.entries(object).map(([key, value]) => ({
+          field: key,
+          value: typeof value === "object" && value !== null ? JSON.stringify(value) : value,
+        }));
+      }
+
+      function renderViewer(payload) {
+        resetViewer();
+
+        if (!payload || typeof payload !== "object") {
+          return;
+        }
+
+        if (Array.isArray(payload.products)) {
+          renderSummaryCards([
+            { label: "Result Type", value: "Product export" },
+            { label: "Rows", value: payload.count ?? payload.products.length },
+            { label: "Success", value: payload.success ? "true" : "false" },
+          ]);
+          renderTable(payload.products, [
+            "sku",
+            "manufacturer",
+            "product_name",
+            "category",
+            "price",
+            "product_url",
+            "image_url",
+          ]);
+          return;
+        }
+
+        if (payload.data && payload.data.quantities) {
+          renderSummaryCards([
+            { label: "Success", value: payload.success ? "true" : "false" },
+            { label: "SKU", value: payload.data.sku ?? "-" },
+            { label: "Available", value: payload.data.available ?? "-" },
+            { label: "Inventory Item", value: payload.data.inventory_item_id ?? "-" },
+          ]);
+          renderTable([payload.data.quantities], [
+            "location_id",
+            "available",
+            "on_hand",
+            "committed",
+            "incoming",
+            "reserved",
+            "damaged",
+            "quality_control",
+            "safety_stock",
+            "unavailable",
+          ]);
+          return;
+        }
+
+        if (payload.data && typeof payload.data === "object") {
+          renderSummaryCards([
+            { label: "Success", value: payload.success ? "true" : "false" },
+            { label: "Message", value: payload.message ?? "-" },
+          ]);
+          renderTable(objectToRows(payload.data), ["field", "value"]);
+          return;
+        }
+
+        renderSummaryCards(
+          Object.entries(payload)
+            .slice(0, 4)
+            .map(([label, value]) => ({
+              label,
+              value: typeof value === "object" && value !== null ? JSON.stringify(value) : String(value),
+            }))
+        );
+        renderTable(objectToRows(payload), ["field", "value"]);
+      }
+
+      function rememberForm(formId) {
+        const form = document.getElementById(formId);
+        const storageKey = `shopify-import-export-tool:${formId}`;
+        const saved = window.localStorage.getItem(storageKey);
+
+        if (saved) {
+          try {
+            const values = JSON.parse(saved);
+            Array.from(form.elements).forEach((element) => {
+              if (element.name && Object.hasOwn(values, element.name)) {
+                element.value = values[element.name];
+              }
+            });
+          } catch (error) {
+          }
+        }
+
+        form.addEventListener("input", () => {
+          const values = {};
+          Array.from(form.elements).forEach((element) => {
+            if (element.name) {
+              values[element.name] = element.value;
+            }
+          });
+          window.localStorage.setItem(storageKey, JSON.stringify(values));
+        });
+      }
+
+      function renderHealth(data) {
+        healthContainer.innerHTML = "";
+
+        const cards = [
+          { label: "Status", value: data.ok ? "OK" : "Config issue", tone: data.ok ? "good" : "bad" },
+          { label: "Service", value: data.service || "-" },
+          { label: "API Version", value: data.api_version || "-" },
+          { label: "Store", value: data.shop_domain || "-" },
+          { label: "Default Location", value: data.default_location_id || "-" },
+          { label: "Issues", value: data.issues && data.issues.length ? data.issues.join(", ") : "None" }
+        ];
+
+        cards.forEach((card) => {
+          const article = document.createElement("article");
+          article.className = `status-card ${card.tone ? `status-${card.tone}` : ""}`;
+          article.innerHTML = `<span>${card.label}</span><strong>${card.value}</strong>`;
+          healthContainer.appendChild(article);
+        });
+      }
+
+      async function loadHealth() {
+        const response = await fetch("/health");
+        const data = await response.json();
+        renderHealth(data);
+        printOutput("GET /health", data);
+      }
+
+      async function submitJsonForm(event, endpoint) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const payload = cleanPayload(new FormData(form));
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (error) {
+          data = { success: false, error: "Server returned a non-JSON response." };
+        }
+
+        printOutput(`${response.status} ${endpoint}`, data);
+      }
+
+      document.getElementById("price-form").addEventListener("submit", (event) => {
+        submitJsonForm(event, "/incoming/update-price");
+      });
+
+      document.getElementById("stock-form").addEventListener("submit", (event) => {
+        submitJsonForm(event, "/incoming/update-stock");
+      });
+
+      document.getElementById("refresh-health").addEventListener("click", () => {
+        loadHealth().catch((error) => {
+          printOutput("GET /health", { success: false, error: error.message });
+        });
+      });
+
+      document.getElementById("clear-output").addEventListener("click", () => {
+        output.textContent = "Ready.";
+        resetViewer();
+      });
+
+      document.getElementById("shutdown-app").addEventListener("click", async () => {
+        const confirmed = window.confirm("Stop the local Flask app now?");
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          const response = await fetch("/admin/shutdown", { method: "POST" });
+          const data = await response.json();
+          printOutput(`${response.status} /admin/shutdown`, data);
+        } catch (error) {
+          printOutput("POST /admin/shutdown", { success: false, error: error.message });
+        }
+      });
+
+      document.getElementById("load-export-preview").addEventListener("click", async () => {
+        try {
+          const response = await fetch("/outgoing/products.json");
+          const data = await response.json();
+          printOutput(`${response.status} /outgoing/products.json`, data);
+        } catch (error) {
+          printOutput("GET /outgoing/products.json", { success: false, error: error.message });
+        }
+      });
+
+      rememberForm("price-form");
+      rememberForm("stock-form");
+      viewerSearch.addEventListener("input", () => {
+        if (viewerState.rows.length) {
+          viewerState.page = 1;
+          renderTable(viewerState.rows, viewerState.columns);
+        }
+      });
+      viewerDownloadCsv.addEventListener("click", downloadCurrentCsv);
+      viewerPageSize.addEventListener("change", () => {
+        viewerState.pageSize = Number(viewerPageSize.value) || 25;
+        viewerState.page = 1;
+        if (viewerState.rows.length) {
+          renderTable(viewerState.rows, viewerState.columns);
+        } else {
+          viewerPaginationStatus.textContent = "No pages yet.";
+          viewerPaginationControls.innerHTML = "";
+        }
+      });
+      viewerSelectAllColumns.addEventListener("click", () => {
+        if (viewerState.columns.length) {
+          setSelectedColumns(viewerState.columns);
+        }
+      });
+      viewerClearColumns.addEventListener("click", () => {
+        setSelectedColumns([]);
+      });
+
+      loadHealth().catch((error) => {
+        printOutput("GET /health", { success: false, error: error.message });
+      });
+    </script>
+  </body>
+</html>

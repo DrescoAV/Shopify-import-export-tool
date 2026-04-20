@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.playwright-cli/
+.superpowers/
+logs/
+.DS_Store
