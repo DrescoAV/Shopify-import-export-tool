@@ -268,5 +268,5 @@ def outgoing_products_csv() -> Response:
 
 
 if __name__ == "__main__":
-    port = int(_env("PORT", "5000"))
+    port = int(_env("PORT", "8000"))
     app.run(host="0.0.0.0", port=port, debug=False)

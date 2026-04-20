@@ -63,7 +63,7 @@ def derive_inventory_targets(
             available = on_hand
 
     if on_hand is None:
-        on_hand = current_on_hand
+        on_hand = max(current_on_hand, available)
 
     if available < 0:
         raise ValueError(
@@ -475,8 +475,27 @@ class ShopifyClient:
             },
         )
 
-        available_changed = targets["available"] != int(current_quantities.get("available", 0) or 0)
-        on_hand_changed = targets["on_hand"] != int(current_quantities.get("on_hand", 0) or 0)
+        current_available = int(current_quantities.get("available", 0) or 0)
+        current_on_hand = int(current_quantities.get("on_hand", 0) or 0)
+        available_changed = targets["available"] != current_available
+        on_hand_changed = targets["on_hand"] != current_on_hand
+
+        # Shopify requires on_hand >= available at every step, not only in the final state.
+        # Increase on_hand first to create headroom, then update available, then decrease on_hand if needed.
+        if on_hand_changed and targets["on_hand"] > current_on_hand:
+            self.set_inventory_quantity(
+                inventory_item_id=resolved_inventory_item_id,
+                location_id=resolved_location_id,
+                name="on_hand",
+                quantity=targets["on_hand"],
+                compare_quantity=current_on_hand,
+            )
+            current_quantities = self.get_inventory_snapshot(
+                inventory_item_id=resolved_inventory_item_id,
+                location_id=resolved_location_id,
+            )
+            current_on_hand = int(current_quantities.get("on_hand", 0) or 0)
+            current_available = int(current_quantities.get("available", 0) or 0)
 
         if available_changed:
             self.set_inventory_quantity(
@@ -484,20 +503,22 @@ class ShopifyClient:
                 location_id=resolved_location_id,
                 name="available",
                 quantity=targets["available"],
-                compare_quantity=int(current_quantities.get("available", 0) or 0),
+                compare_quantity=current_available,
             )
             current_quantities = self.get_inventory_snapshot(
                 inventory_item_id=resolved_inventory_item_id,
                 location_id=resolved_location_id,
             )
+            current_on_hand = int(current_quantities.get("on_hand", 0) or 0)
+            current_available = int(current_quantities.get("available", 0) or 0)
 
-        if on_hand_changed:
+        if on_hand_changed and targets["on_hand"] < current_on_hand:
             self.set_inventory_quantity(
                 inventory_item_id=resolved_inventory_item_id,
                 location_id=resolved_location_id,
                 name="on_hand",
                 quantity=targets["on_hand"],
-                compare_quantity=int(current_quantities.get("on_hand", 0) or 0),
+                compare_quantity=current_on_hand,
             )
 
         quantities = self.get_inventory_snapshot(

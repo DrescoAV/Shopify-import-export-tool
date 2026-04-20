@@ -1,6 +1,6 @@
 import unittest
 
-from shopify_client import derive_inventory_targets
+from shopify_client import ShopifyClient, derive_inventory_targets
 
 
 class DeriveInventoryTargetsTests(unittest.TestCase):
@@ -27,6 +27,18 @@ class DeriveInventoryTargetsTests(unittest.TestCase):
         self.assertEqual(result["available"], 9)
         self.assertEqual(result["on_hand"], 10)
         self.assertEqual(result["unavailable"], 1)
+
+    def test_available_only_raises_on_hand_when_needed(self):
+        current = {"available": 8, "on_hand": 8, "unavailable": 0}
+
+        result = derive_inventory_targets(
+            current_quantities=current,
+            requested={"available": 12},
+        )
+
+        self.assertEqual(result["available"], 12)
+        self.assertEqual(result["on_hand"], 12)
+        self.assertEqual(result["unavailable"], 0)
 
     def test_on_hand_only_keeps_current_available(self):
         current = {"available": 8, "on_hand": 10, "unavailable": 2}
@@ -57,6 +69,40 @@ class DeriveInventoryTargetsTests(unittest.TestCase):
                 current_quantities=current,
                 requested={"unavailable": 4},
             )
+
+
+class UpdateStockOrderingTests(unittest.TestCase):
+    def test_increasing_available_updates_on_hand_first(self):
+        client = ShopifyClient(
+            shop_domain="example.myshopify.com",
+            access_token="token",
+            default_location_id="1",
+        )
+
+        calls = []
+        snapshots = iter(
+            [
+                {"available": 8, "on_hand": 8, "unavailable": 0},
+                {"available": 8, "on_hand": 12, "unavailable": 4},
+                {"available": 12, "on_hand": 12, "unavailable": 0},
+                {"available": 12, "on_hand": 12, "unavailable": 0},
+            ]
+        )
+
+        client.get_inventory_snapshot = lambda **kwargs: next(snapshots)
+        client.set_inventory_quantity = lambda **kwargs: calls.append(kwargs)
+
+        result = client.update_stock(
+            inventory_item_id=123,
+            available=12,
+        )
+
+        self.assertEqual(
+            [call["name"] for call in calls],
+            ["on_hand", "available"],
+        )
+        self.assertEqual(result["available"], 12)
+        self.assertEqual(result["on_hand"], 12)
 
 
 if __name__ == "__main__":

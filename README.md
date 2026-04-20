@@ -15,7 +15,7 @@ The main way to use the app is through the local browser interface.
 Open:
 
 ```text
-http://localhost:5000/
+http://localhost:8000/
 ```
 
 Preview:
@@ -46,7 +46,7 @@ Example:
 SHOP_DOMAIN=survivalprep-2.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_xxx
 DEFAULT_LOCATION_ID=1234567890
-PORT=5000
+PORT=8000
 ```
 
 ## Quick start
@@ -163,7 +163,7 @@ Typical flow:
 ### Update price by SKU
 
 ```bash
-curl -X POST http://localhost:5000/incoming/update-price \
+curl -X POST http://localhost:8000/incoming/update-price \
   -H "Content-Type: application/json" \
   -d '{"sku":"ABC-123","price":"149.99"}'
 ```
@@ -171,7 +171,7 @@ curl -X POST http://localhost:5000/incoming/update-price \
 ### Update stock by SKU
 
 ```bash
-curl -X POST http://localhost:5000/incoming/update-stock \
+curl -X POST http://localhost:8000/incoming/update-stock \
   -H "Content-Type: application/json" \
   -d '{"sku":"ABC-123","available":25}'
 ```
@@ -179,13 +179,13 @@ curl -X POST http://localhost:5000/incoming/update-stock \
 ### Export JSON
 
 ```bash
-curl http://localhost:5000/outgoing/products.json
+curl http://localhost:8000/outgoing/products.json
 ```
 
 ### Export CSV
 
 ```bash
-curl http://localhost:5000/outgoing/products.csv -o products.csv
+curl http://localhost:8000/outgoing/products.csv -o products.csv
 ```
 
 ## Notes
