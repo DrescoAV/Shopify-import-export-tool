@@ -2,19 +2,23 @@ import os
 import threading
 import time
 from decimal import Decimal, InvalidOperation
+import logging
 
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, render_template, request
 
 from export_utils import products_to_export_rows, rows_to_csv
 from shopify_client import ConfigError, ShopifyAPIError, ShopifyClient
+from telegram_bot import TelegramBotService, parse_allowed_chat_ids
 
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 
 APP_NAME = "shopify-import-export-tool"
 API_VERSION = "2026-01"
+_TELEGRAM_BOT: TelegramBotService | None = None
 
 
 def _env(name: str, default: str | None = None) -> str | None:
@@ -38,6 +42,46 @@ def create_shopify_client() -> ShopifyClient:
         api_version=API_VERSION,
         default_location_id=default_location_id,
     )
+
+
+def export_product_rows() -> list[dict[str, str]]:
+    client = create_shopify_client()
+    products = client.get_products_for_export()
+    return products_to_export_rows(products, client.shop_domain)
+
+
+def maybe_start_telegram_bot() -> None:
+    global _TELEGRAM_BOT
+
+    if _TELEGRAM_BOT is not None:
+        return
+
+    token = _env("TELEGRAM_BOT_TOKEN")
+    if not token:
+        return
+
+    try:
+        allowed_chat_ids = parse_allowed_chat_ids(_env("TELEGRAM_ALLOWED_CHAT_IDS"))
+    except ValueError:
+        logging.warning(
+            "Telegram bot disabled because TELEGRAM_ALLOWED_CHAT_IDS is invalid."
+        )
+        return
+
+    if not allowed_chat_ids:
+        logging.warning(
+            "Telegram bot disabled because TELEGRAM_ALLOWED_CHAT_IDS is missing."
+        )
+        return
+
+    _TELEGRAM_BOT = TelegramBotService(
+        token=token,
+        allowed_chat_ids=allowed_chat_ids,
+        create_shopify_client=create_shopify_client,
+        parse_price=_parse_price,
+        list_products=export_product_rows,
+    )
+    _TELEGRAM_BOT.start()
 
 
 app = Flask(__name__)
@@ -269,4 +313,5 @@ def outgoing_products_csv() -> Response:
 
 if __name__ == "__main__":
     port = int(_env("PORT", "8000"))
+    maybe_start_telegram_bot()
     app.run(host="0.0.0.0", port=port, debug=False)
